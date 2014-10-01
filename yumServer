@@ -1,0 +1,94 @@
+os.loadAPI("api/redString")
+os.loadAPI("api/sovietProtocol")
+
+PROTOCOL_CHANNEL = 137
+sovietProtocol.init(PROTOCOL_CHANNEL, PROTOCOL_CHANNEL)
+modem = peripheral.find("modem")
+sovietProtocol.setDebugLevel(9)
+
+function getIndex(package)
+	local index = fs.combine(fs.combine("packages", package), "index")
+	if fs.exists(index) then 
+		return index
+	else
+		return false
+	end
+end
+
+function getPackageRoot(package)
+	return fs.combine("packages", package)
+end
+
+function parseIndex(index)
+	local f = io.open(index, "r")
+	local ret = {}
+	for line in f:lines() do
+		local split = redString.split(line)
+		ret[split[1]] = split[2]
+	end
+	f:close()
+	return ret
+end
+
+function dispatchPackage(package, replyChannel)
+	local message = ""
+	local parts = parseIndex(getIndex(package))
+	for location, file in pairs(parts) do 
+		message = message.. location.." "..file.." ".."force\n"
+	end
+	sovietProtocol.send(replyChannel, PROTOCOL_CHANNEL, "package_list", package, message)
+end
+
+function dispatchFile(package, fileName, replyChannel)
+	local parts = parseIndex(getIndex(package))
+	print(fileName)
+	if parts[fileName] then
+		local actualFile = fs.combine(getPackageRoot(package), fileName)
+		local f = fs.open(actualFile, "r")
+		print("sending "..actualFile)
+		if f then
+			local file = f:readAll()
+			f:close()
+			sovietProtocol.send(replyChannel, PROTOCOL_CHANNEL, "file", parts[fileName] , file)
+			return true
+		end
+	end
+
+	sovietProtocol.send(replyChannel, PROTOCOL_CHANNEL, "error", "404", "File Not Found")
+end
+
+while true do
+
+	replyChannel, request = sovietProtocol.listen()
+
+	if request.method == "install" then
+		local package = request.id
+		local file = request.body
+
+		if getIndex(package) then
+			if file then
+				dispatchFile(package, file, replyChannel)
+			else
+				dispatchPackage(package, replyChannel)
+			end
+		else
+			sovietProtocol.send(replyChannel, PROTOCOL_CHANNEL, "error", "404", "Package Not Found")
+		end
+	end
+
+	if request.method == "list" then
+		local package = request.id
+		if package then
+			dispatchPackage(package, replyChannel)
+		else
+			local packageList = ""
+			for k, package in pairs(fs.list("packages")) do
+				if getIndex(package) then
+					packageList = packageList..package.."\n"
+				end
+			end
+			sovietProtocol.send(replyChannel, PROTOCOL_CHANNEL, "package_list", "ALL", packageList)
+		end
+	end
+
+end
