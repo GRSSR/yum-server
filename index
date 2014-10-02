@@ -1,1 +1,4 @@
 yum-server yumServer.lua /yum-server/yum-server
+
+api:redString
+api:sovietProtocol

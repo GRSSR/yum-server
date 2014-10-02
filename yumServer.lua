@@ -23,11 +23,13 @@ function parseIndex(index)
 	local f = io.open(index, "r")
 	local ret = {}
 	for line in f:lines() do
-		local details = {}
-		local split = redString.split(line)
-		details.fileName = split[2]
-		details.installLocation = split[3]
-		ret[split[1]] = details
+		if line ~= "" and line:sub(1,1) ~= "#" then
+			local details = {}
+			local split = redString.split(line)
+			details.fileName = split[2]
+			details.installLocation = split[3]
+			ret[split[1]] = details
+		end
 	end
 	f:close()
 	return ret
@@ -36,10 +38,15 @@ end
 function dispatchPackage(package, replyChannel)
 	local message = ""
 	local parts = parseIndex(getIndex(package))
-	for name, comp in pairs(parts) do 
-		print(comp)
-		print(comp.installLocation)
-		message = message..name.." "..comp.installLocation.." ".."force\n"
+	for name, comp in pairs(parts) do
+		if name:find(":") then
+			local s = redString.split(name, 2, ":")
+			local depPackage = s[1]
+			local depComponant = s[2]
+			message = message.."depends:".." "..depPackage.." "..depComponant.."\n"
+		else
+			message = message..name.." "..comp.installLocation.." ".."force\n"
+		end
 	end
 	sovietProtocol.send(replyChannel, PROTOCOL_CHANNEL, "package_list", package, message)
 end
