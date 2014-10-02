@@ -4,7 +4,7 @@ os.loadAPI("api/sovietProtocol")
 PROTOCOL_CHANNEL = 137
 sovietProtocol.init(PROTOCOL_CHANNEL, PROTOCOL_CHANNEL)
 modem = peripheral.find("modem")
-sovietProtocol.setDebugLevel(9)
+sovietProtocol.setDebugLevel(0)
 
 function getIndex(package)
 	local index = fs.combine(fs.combine("packages", package), "index")
@@ -23,8 +23,11 @@ function parseIndex(index)
 	local f = io.open(index, "r")
 	local ret = {}
 	for line in f:lines() do
+		local details = {}
 		local split = redString.split(line)
-		ret[split[1]] = split[2]
+		details.fileName = split[2]
+		details.installLocation = split[3]
+		ret[split[1]] = details
 	end
 	f:close()
 	return ret
@@ -33,23 +36,30 @@ end
 function dispatchPackage(package, replyChannel)
 	local message = ""
 	local parts = parseIndex(getIndex(package))
-	for location, file in pairs(parts) do 
-		message = message.. location.." "..file.." ".."force\n"
+	for name, comp in pairs(parts) do 
+		print(comp)
+		print(comp.installLocation)
+		message = message..name.." "..comp.installLocation.." ".."force\n"
 	end
 	sovietProtocol.send(replyChannel, PROTOCOL_CHANNEL, "package_list", package, message)
 end
 
-function dispatchFile(package, fileName, replyChannel)
+function dispatchFile(package, componantName, replyChannel)
 	local parts = parseIndex(getIndex(package))
-	print(fileName)
-	if parts[fileName] then
-		local actualFile = fs.combine(getPackageRoot(package), fileName)
+	local componant = parts[componantName]
+	if componant then
+		local actualFile = fs.combine(getPackageRoot(package), componant.fileName)
 		local f = fs.open(actualFile, "r")
 		print("sending "..actualFile)
 		if f then
 			local file = f:readAll()
 			f:close()
-			sovietProtocol.send(replyChannel, PROTOCOL_CHANNEL, "file", parts[fileName] , file)
+			sovietProtocol.send(
+				replyChannel,
+				PROTOCOL_CHANNEL,
+				"file",
+				componant.installLocation,
+				file)
 			return true
 		end
 	end
@@ -57,17 +67,18 @@ function dispatchFile(package, fileName, replyChannel)
 	sovietProtocol.send(replyChannel, PROTOCOL_CHANNEL, "error", "404", "File Not Found")
 end
 
+print("Starting Yum Server")
 while true do
 
-	replyChannel, request = sovietProtocol.listen()
+	local replyChannel, request = sovietProtocol.listen()
 
 	if request.method == "install" then
 		local package = request.id
-		local file = request.body
+		local componant = request.body
 
 		if getIndex(package) then
-			if file then
-				dispatchFile(package, file, replyChannel)
+			if componant then
+				dispatchFile(package, componant, replyChannel)
 			else
 				dispatchPackage(package, replyChannel)
 			end

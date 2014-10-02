@@ -1,1 +1,1 @@
-yum-server /yum-server/yum-server
+yum-server yumServer.lua /yum-server/yum-server
