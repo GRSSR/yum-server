@@ -2,8 +2,8 @@ os.loadAPI("api/redString")
 os.loadAPI("api/sovietProtocol")
 
 PROTOCOL_CHANNEL = 137
-sovietProtocol.init(PROTOCOL_CHANNEL, PROTOCOL_CHANNEL)
-modem = peripheral.find("modem")
+local yum = sovietProtocol.Protocol:new("yum", PROTOCOL_CHANNEL, PROTOCOL_CHANNEL)
+
 sovietProtocol.setDebugLevel(0)
 
 function getIndex(package)
@@ -48,7 +48,7 @@ function dispatchPackage(package, replyChannel)
 			message = message..name.." "..comp.installLocation.." ".."force\n"
 		end
 	end
-	sovietProtocol.send(replyChannel, PROTOCOL_CHANNEL, "package_list", package, message)
+	yum:send("package_list", package, message, replyChannel)
 end
 
 function dispatchFile(package, componantName, replyChannel)
@@ -61,23 +61,22 @@ function dispatchFile(package, componantName, replyChannel)
 		if f then
 			local file = f:readAll()
 			f:close()
-			sovietProtocol.send(
-				replyChannel,
-				PROTOCOL_CHANNEL,
+			yum:send(
 				"file",
 				componant.installLocation,
-				file)
+				file,
+				replyChannel)
 			return true
 		end
 	end
 
-	sovietProtocol.send(replyChannel, PROTOCOL_CHANNEL, "error", "404", "File Not Found")
+	yum:send("error", "404", "File Not Found")
 end
 
 print("Starting Yum Server")
 while true do
 
-	local replyChannel, request = sovietProtocol.listen()
+	local replyChannel, request = yum:listen()
 
 	if request.method == "install" then
 		local package = request.id
@@ -90,7 +89,7 @@ while true do
 				dispatchPackage(package, replyChannel)
 			end
 		else
-			sovietProtocol.send(replyChannel, PROTOCOL_CHANNEL, "error", "404", "Package Not Found")
+			yum:send("error", "404", "Package Not Found", replyChannel)
 		end
 	end
 
@@ -105,7 +104,7 @@ while true do
 					packageList = packageList..package.."\n"
 				end
 			end
-			sovietProtocol.send(replyChannel, PROTOCOL_CHANNEL, "package_list", "ALL", packageList)
+			yum:send("package_list", "ALL", packageList, replyChannel)
 		end
 	end
 
