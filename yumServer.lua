@@ -51,7 +51,7 @@ function dispatchPackage(package, replyChannel)
 	yum:send("package_list", package, message, replyChannel)
 end
 
-function dispatchFile(package, componantName, replyChannel)
+function dispatchComponant(package, componantName, replyChannel)
 	local parts = parseIndex(getIndex(package))
 	local componant = parts[componantName]
 	if componant then
@@ -73,6 +73,24 @@ function dispatchFile(package, componantName, replyChannel)
 	yum:send("error", "404", "File Not Found")
 end
 
+function dispatchFile(fileLocation, replyChannel)
+	local f = fs.open(fileLocation, "r")
+	print("sending "..fileLocation)
+	if f then
+		local file = f:readAll()
+		f:close()
+		yum:send(
+			"file",
+			fileLocation,
+			file,
+			replyChannel)
+		return true
+	else
+		yum:send("error", "404", "File Not Found")
+		return false
+	end
+end
+
 print("Starting Yum Server")
 while true do
 
@@ -84,7 +102,7 @@ while true do
 
 		if getIndex(package) then
 			if componant then
-				dispatchFile(package, componant, replyChannel)
+				dispatchComponant(package, componant, replyChannel)
 			else
 				dispatchPackage(package, replyChannel)
 			end
@@ -105,6 +123,22 @@ while true do
 				end
 			end
 			yum:send("package_list", "ALL", packageList, replyChannel)
+		end
+	end
+
+	if request.method == "replicate" then
+		if request.id == "list" then
+			local files = ""
+			for k, package in pairs(fs.list("packages")) do
+				for k, file in pairs(fs.list("/packages/"..package)) do
+					if file ~= ".git" then
+						files = files.."/packages/"..package.."/"..file.."\n"
+					end
+				end
+			end
+			yum:send("file_list", "ALL", files, replyChannel)
+		else
+			dispatchFile(request.id, replyChannel)
 		end
 	end
 
