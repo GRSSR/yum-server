@@ -1,4 +1,7 @@
-yum-server yumServer.lua /yum-server/yum-server
+yum-server yumServer.lua /.sys/d/yum-server
 
-api:redString
-api:sovietProtocol
+alias: yumd /.sys/d/yum-server
+
+package: redString
+package: sovietProtocol
+package: yggdrasil

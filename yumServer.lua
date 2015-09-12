@@ -41,9 +41,12 @@ function dispatchPackage(package, replyChannel)
 	for name, comp in pairs(parts) do
 		if name:find(":") then
 			local s = redString.split(name, 2, ":")
-			local depPackage = s[1]
-			local depComponant = s[2]
-			message = message.."depends:".." "..depPackage.." "..depComponant.."\n"
+			local method = s[1]
+			if method == 'package' then
+				message = message..method.." "..comp.fileName.."\n"
+			elseif method == 'alias' then
+				message = message..method.." "..comp.fileName.." "..comp.installLocation.."\n"
+			end
 		else
 			message = message..name.." "..comp.installLocation.." ".."force\n"
 		end
@@ -67,6 +70,8 @@ function dispatchComponant(package, componantName, replyChannel)
 				file,
 				replyChannel)
 			return true
+		else
+			print("file "..actualFile.." does not exist")
 		end
 	end
 
